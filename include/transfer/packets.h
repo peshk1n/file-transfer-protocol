@@ -7,7 +7,6 @@
 
 namespace transfer
 {
-    // Типы пакетов
     enum class PacketType : uint8_t {
         START = 1,
         START_ACK = 2,
