@@ -50,6 +50,8 @@ namespace transfer {
 
         std::vector<Packet> chunks;   // Все DATA-пакеты, нарезанные из файла
         std::vector<Packet> outgoing; // Пакеты, готовые к отправке
+
+        StartPacket start_packet;
     };
 
 } 

@@ -53,6 +53,7 @@ namespace transfer {
         sp.chunk_size = chunk_size;
         sp.total_chunks = total_chunks;
         sp.file_hash = file_hash;
+        start_packet = sp;
         outgoing.push_back(std::move(sp));
 
         state = State::WAIT_START_ACK;
@@ -63,11 +64,6 @@ namespace transfer {
         std::vector<Packet> result;
         std::swap(result, outgoing);
         return result;
-    }
-
-    void Sender::on_timeout()
-    {
-        /* позже */
     }
 
 
@@ -99,31 +95,68 @@ namespace transfer {
     }
 
 
-    bool  Sender::is_done()      const { return state == State::DONE; }
-    bool  Sender::is_error()     const { return state == State::ERROR; }
+    bool  Sender::is_done() const { 
+        return state == State::DONE; 
+    }
+
+    bool  Sender::is_error() const { 
+        return state == State::ERROR; 
+    }
+
     float Sender::get_progress() const {
         if (total_chunks == 0) return 0.0f;
         return static_cast<float>(base) / static_cast<float>(total_chunks);
     }
 
-    void Sender::on_ack(const AckPacket& pkt)
-    { 
-        /* позже */ 
+
+    void Sender::on_ack(const AckPacket& pkt) {
+        if (state != State::TRANSFERRING) return;
+
+        if (pkt.ack_id < base) return; 
+        base = pkt.ack_id;
+
+        if (base == total_chunks) {
+            EndPacket ep;
+            ep.file_hash = start_packet.file_hash;
+            outgoing.push_back(ep);
+            state = State::WAIT_END_ACK;
+            return;
+        }
+
+        fill_window();
     }
 
-    void Sender::on_end_ack(const EndAckPacket& pkt)
-    {
-        /* позже */
+
+    void Sender::on_end_ack(const EndAckPacket& pkt) {
+        if (state != State::WAIT_END_ACK) return;
+        state = State::DONE;
     }
 
-    void Sender::fill_window()
-    {
-        /* позже */
+    void Sender::fill_window() {
+        while (next_seq < base + window_size && next_seq < total_chunks) {
+            outgoing.push_back(chunks[next_seq]);
+            next_seq++;
+        }
     }
 
-    void Sender::retransmit()
-    {
-        /* позже */
+    void Sender::retransmit() {
+        for (uint32_t i = base; i < next_seq; i++) {
+            outgoing.push_back(chunks[i]);
+        }
+    }
+
+    void Sender::on_timeout() {
+        if (state == State::TRANSFERRING) {
+            retransmit();
+        }
+        else if (state == State::WAIT_START_ACK) {
+            outgoing.push_back(start_packet);
+        }
+        else if (state == State::WAIT_END_ACK) {
+            EndPacket ep;
+            ep.file_hash = start_packet.file_hash;
+            outgoing.push_back(ep);
+        }
     }
 
 } 
