@@ -13,8 +13,8 @@ namespace transfer
     class TransferSession
     {
     public:
-        TransferSession() = default;
-        ~TransferSession() = default;
+        TransferSession();
+        ~TransferSession();
 
         // Инициализация сессии в режиме отправителя
         void init_as_sender(const std::string& file_path,

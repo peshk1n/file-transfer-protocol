@@ -8,3 +8,5 @@ add_library(file-transfer-protocol STATIC
  "include/transfer/packets.h" "src/transfer_agent.h" "src/sender.h" "src/receiver.h")
 
 target_include_directories(file-transfer-protocol PUBLIC include)
+
+add_subdirectory(tests)
