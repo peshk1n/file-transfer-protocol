@@ -24,9 +24,9 @@ namespace transfer {
 
     private:
         // Обработка конкретных пакетов
-        void on_start(const Packet& pkt);
-        void on_data(const Packet& pkt);
-        void on_end(const Packet& pkt);
+        void on_start(const StartPacket& pkt);
+        void on_data(const DataPacket& pkt);
+        void on_end(const EndPacket& pkt);
 
         // Состояния агента
         enum class State {

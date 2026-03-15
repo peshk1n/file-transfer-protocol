@@ -9,3 +9,7 @@ target_link_libraries(test_transfer
 target_include_directories(test_transfer PRIVATE
     ${PROJECT_SOURCE_DIR}/include
 )
+
+target_compile_definitions(test_transfer PRIVATE
+    TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/tests/data"
+)

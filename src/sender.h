@@ -24,9 +24,9 @@ namespace transfer {
 
     private:
         // Обработка подтверждений
-        void on_start_ack(const Packet& pkt);
-        void on_ack(const Packet& pkt);
-        void on_end_ack(const Packet& pkt);
+        void on_start_ack(const StartAckPacket& pkt);
+        void on_ack(const AckPacket& pkt);
+        void on_end_ack(const EndAckPacket& pkt);
 
         // Управление окном передачи
         void fill_window();   // Добавляет новые DATA-пакеты в outgoing, пока окно не заполнено
