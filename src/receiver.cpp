@@ -95,6 +95,11 @@ namespace transfer {
     }
 
 
-    void Receiver::on_end(const EndPacket& pkt) { /* позже */ }
+    void Receiver::on_end(const EndPacket& pkt) {     
+        /* проверка хэша позже */ 
+
+        outgoing.push_back(EndAckPacket{});
+        state = State::DONE;
+    }
 
 } 

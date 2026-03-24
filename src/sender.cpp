@@ -73,7 +73,7 @@ namespace transfer {
                 [&](const StartAckPacket& p) { on_start_ack(p); },
                 [&](const AckPacket& p) { on_ack(p);       },
                 [&](const EndAckPacket& p) { on_end_ack(p);   },
-                [&](const auto&) {}  // неожиданный тип 
+                [&](const auto&) {}  
                 }, pkt);
         }
     }
@@ -112,7 +112,7 @@ namespace transfer {
     void Sender::on_ack(const AckPacket& pkt) {
         if (state != State::TRANSFERRING) return;
 
-        if (pkt.ack_id < base) return; 
+        if (pkt.ack_id <= base) return; 
         base = pkt.ack_id;
 
         if (base == total_chunks) {

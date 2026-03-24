@@ -19,6 +19,16 @@ namespace transfer {
     }
 
     void TransferSession::feed_incoming(const std::vector<Packet>& packets) {
+        if (!agent) {
+            if (packets.empty()) return;
+            if (std::holds_alternative<StartPacket>(packets.front())) {
+                agent = std::make_unique<Receiver>();
+            }
+            else {
+                return; // непонятный пакет без агента - игнорим
+            }
+        }
+
         agent->feed_incoming(packets);
     }
 
@@ -27,12 +37,20 @@ namespace transfer {
     }
 
     void TransferSession::tick(uint64_t now_ms) {
+        if (!agent) 
+            return;
+        if (last_packet_ms == 0) {
+            last_packet_ms = now_ms; 
+            return;
+        }
         if (now_ms - last_packet_ms >= timeout_ms)
             agent->on_timeout();
+
+        last_packet_ms = now_ms;
     }
 
     float TransferSession::get_progress() const { return agent->get_progress(); }
-    bool  TransferSession::is_done()      const { return agent->is_done(); }
-    bool  TransferSession::is_error()     const { return agent->is_error(); }
+    bool  TransferSession::is_done() const { return agent->is_done(); }
+    bool  TransferSession::is_error() const { return agent->is_error(); }
 
 }

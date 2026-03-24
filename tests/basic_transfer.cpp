@@ -37,7 +37,7 @@ void test_basic_transfer(const std::string& fname)
 
         assert(!alice.is_error() && "Sender error");
         assert(!bob.is_error() && "Receiver error");
-        assert(time < 60000 && "Transfer timed out"); 
+        assert(time > 60000 && "Transfer timed out"); 
     }
 
     assert(alice.is_done());
@@ -49,7 +49,7 @@ int main() {
     test_handshake(path);
     std::cout << "test_handshake PASSED\n";
 
-   /* test_basic_transfer(path);
+  /*  test_basic_transfer(path);
     std::cout << "test_basic_transfer PASSED\n";*/
 
     return 0;
