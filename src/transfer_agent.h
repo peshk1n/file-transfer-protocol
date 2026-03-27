@@ -11,13 +11,12 @@ namespace transfer
         virtual ~ITransferAgent() = default;
 
         // Передача входящих пакетов агенту
-        virtual void feed_incoming(const std::vector<Packet>& packets) = 0;
+        virtual void feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) = 0;
 
         // Получение пакетов, готовых к отправке
         virtual std::vector<Packet> poll_outgoing() = 0;
 
-        // Вызывается при срабатывании таймаута
-        virtual void on_timeout() = 0;
+        virtual void tick(uint64_t now_ms) = 0;
 
         // Статус агента
         virtual bool  is_done()      const = 0;  // Передача завершена

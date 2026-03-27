@@ -14,9 +14,9 @@ namespace transfer {
         Receiver();
 
         // Реализация интерфейса ITransferAgent
-        void feed_incoming(const std::vector<Packet>& packets) override; 
+        void feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) override;
         std::vector<Packet> poll_outgoing() override;                     
-        void on_timeout() override {}                                     
+        void tick(uint64_t now_ms) override {}
 
         bool is_done() const override;       // Передача завершена
         bool is_error() const override;      // Ошибка приема

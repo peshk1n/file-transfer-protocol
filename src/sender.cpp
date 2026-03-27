@@ -2,7 +2,6 @@
 #include "utils.h"
 #include <fstream>
 #include <stdexcept>
-#include <functional>
 
 namespace transfer {
 
@@ -23,18 +22,16 @@ namespace transfer {
             std::istreambuf_iterator<char>()
         };
 
-        std::string file_hash = std::to_string(
-            std::hash<std::string>{}(std::string(file_data.begin(), file_data.end()))
-        );
+        picosha2::hash256_one_by_one file_hasher;
 
         uint32_t id = 0;
         for (size_t offset = 0; offset < file_data.size(); offset += chunk_size) {
             size_t end = std::min(offset + chunk_size, file_data.size());
             std::vector<uint8_t> payload(file_data.begin() + offset, file_data.begin() + end);
 
-            std::string chunk_hash = std::to_string(
-                std::hash<std::string>{}(std::string(payload.begin(), payload.end()))
-            );
+            file_hasher.process(payload.begin(), payload.end());
+
+            std::string chunk_hash = picosha2::hash256_hex_string(payload);
 
             DataPacket dp;
             dp.chunk_id = id++;
@@ -42,6 +39,9 @@ namespace transfer {
             dp.chunk_hash = std::move(chunk_hash);
             chunks.push_back(std::move(dp));
         }
+
+        file_hasher.finish();
+        std::string file_hash = picosha2::get_hash_hex_string(file_hasher);
 
         total_chunks = static_cast<uint32_t>(chunks.size());
 
@@ -67,33 +67,57 @@ namespace transfer {
     }
 
 
-    void Sender::feed_incoming(const std::vector<Packet>& packets) {
+    void Sender::feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) {
         for (const auto& pkt : packets) {
             std::visit(overloaded{
-                [&](const StartAckPacket& p) { on_start_ack(p); },
-                [&](const AckPacket& p) { on_ack(p);       },
-                [&](const EndAckPacket& p) { on_end_ack(p);   },
-                [&](const auto&) {}  
+                [&](const StartAckPacket& p) { on_start_ack(p, now_ms); },
+                [&](const AckPacket& p) { on_ack(p, now_ms);       },
+                [&](const EndAckPacket& p) { on_end_ack(p);           },
+                [&](const auto&) {}
                 }, pkt);
         }
     }
 
-
-    void Sender::on_start_ack(const StartAckPacket& pkt) {
+    void Sender::on_start_ack(const StartAckPacket& pkt, uint64_t now_ms) {
         if (state != State::WAIT_START_ACK) return;
-
         if (pkt.status == Status::ERROR) {
             state = State::ERROR;
             return;
         }
-
         base = 0;
         next_seq = 0;
         state = State::TRANSFERRING;
-
-        fill_window(); 
+        fill_window(now_ms);  
     }
 
+    void Sender::on_ack(const AckPacket& pkt, uint64_t now_ms) {
+        if (state != State::TRANSFERRING) return;
+        if (pkt.ack_id <= base) return;
+
+        base = pkt.ack_id;
+
+        if (base == total_chunks) {
+            EndPacket ep;
+            ep.file_hash = start_packet.file_hash;
+            outgoing.push_back(ep);
+            start_timer(now_ms); 
+            state = State::WAIT_END_ACK;
+            return;
+        }
+
+        fill_window(now_ms);
+
+        if (base < next_seq)
+            start_timer(now_ms);
+        else
+            stop_timer();
+    }
+
+    void Sender::on_end_ack(const EndAckPacket&) {
+        if (state != State::WAIT_END_ACK) return;
+        stop_timer();
+        state = State::DONE;
+    }
 
     bool  Sender::is_done() const { 
         return state == State::DONE; 
@@ -109,53 +133,53 @@ namespace transfer {
     }
 
 
-    void Sender::on_ack(const AckPacket& pkt) {
-        if (state != State::TRANSFERRING) return;
-
-        if (pkt.ack_id <= base) return; 
-        base = pkt.ack_id;
-
-        if (base == total_chunks) {
-            EndPacket ep;
-            ep.file_hash = start_packet.file_hash;
-            outgoing.push_back(ep);
-            state = State::WAIT_END_ACK;
-            return;
-        }
-
-        fill_window();
-    }
-
-
-    void Sender::on_end_ack(const EndAckPacket& pkt) {
-        if (state != State::WAIT_END_ACK) return;
-        state = State::DONE;
-    }
-
-    void Sender::fill_window() {
+    void Sender::fill_window(uint64_t now_ms) {
         while (next_seq < base + window_size && next_seq < total_chunks) {
+            if (next_seq == base) {
+                // отправляем первый неподтверждённый - запускаем таймер
+                start_timer(now_ms);
+            }
             outgoing.push_back(chunks[next_seq]);
             next_seq++;
         }
     }
 
-    void Sender::retransmit() {
+    void Sender::retransmit(uint64_t now_ms) {
         for (uint32_t i = base; i < next_seq; i++) {
             outgoing.push_back(chunks[i]);
         }
+        start_timer(now_ms);
     }
 
-    void Sender::on_timeout() {
+    // Таймер
+    void Sender::start_timer(uint64_t now_ms) {
+        timer_start_ms = now_ms;
+    }
+
+    void Sender::stop_timer() {
+        timer_start_ms = 0;
+    }
+
+    void Sender::tick(uint64_t now_ms) {
+        if (timer_start_ms == 0 && state == State::WAIT_START_ACK) {
+            start_timer(now_ms);
+            return;
+        }
+        if (timer_start_ms == 0) return;
+        if (now_ms - timer_start_ms < timeout_ms) return;
+
         if (state == State::TRANSFERRING) {
-            retransmit();
+            retransmit(now_ms);
         }
         else if (state == State::WAIT_START_ACK) {
             outgoing.push_back(start_packet);
+            start_timer(now_ms);
         }
         else if (state == State::WAIT_END_ACK) {
             EndPacket ep;
             ep.file_hash = start_packet.file_hash;
             outgoing.push_back(ep);
+            start_timer(now_ms);
         }
     }
 

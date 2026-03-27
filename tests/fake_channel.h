@@ -4,6 +4,6 @@
 namespace test
 {
 
-    void deliver(transfer::TransferSession& from, transfer::TransferSession& to);
+    void deliver(transfer::TransferSession& from, transfer::TransferSession& to, uint64_t now_ms);
 
 }

@@ -18,7 +18,7 @@ namespace transfer {
         agent = std::make_unique<Receiver>();
     }
 
-    void TransferSession::feed_incoming(const std::vector<Packet>& packets) {
+    void TransferSession::feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) {
         if (!agent) {
             if (packets.empty()) return;
             if (std::holds_alternative<StartPacket>(packets.front())) {
@@ -29,28 +29,32 @@ namespace transfer {
             }
         }
 
-        agent->feed_incoming(packets);
+        agent->feed_incoming(packets, now_ms);
     }
 
     std::vector<Packet> TransferSession::poll_outgoing() {
+        if (!agent) return {};
         return agent->poll_outgoing();
     }
 
     void TransferSession::tick(uint64_t now_ms) {
-        if (!agent) 
-            return;
-        if (last_packet_ms == 0) {
-            last_packet_ms = now_ms; 
-            return;
-        }
-        if (now_ms - last_packet_ms >= timeout_ms)
-            agent->on_timeout();
-
-        last_packet_ms = now_ms;
+        if (!agent) return;
+        agent->tick(now_ms);
     }
 
-    float TransferSession::get_progress() const { return agent->get_progress(); }
-    bool  TransferSession::is_done() const { return agent->is_done(); }
-    bool  TransferSession::is_error() const { return agent->is_error(); }
+    float TransferSession::get_progress() const { 
+        if (!agent) return 0.0f;
+        return agent->get_progress(); 
+    }
+
+    bool TransferSession::is_done() const { 
+        if (!agent) return false;
+        return agent->is_done(); 
+    }
+
+    bool TransferSession::is_error() const { 
+        if (!agent) return false;
+        return agent->is_error(); 
+    }
 
 }

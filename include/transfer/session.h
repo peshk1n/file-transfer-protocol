@@ -25,7 +25,7 @@ namespace transfer
         void init_as_receiver();
 
         // Передача входящих пакетов в сессию
-        void feed_incoming(const std::vector<Packet>& packets);
+        void feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms);
 
         // Извлечение пакетов, готовых к отправке
         std::vector<Packet> poll_outgoing();

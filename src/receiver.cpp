@@ -11,8 +11,7 @@ namespace transfer {
     {
     }
 
-
-    void Receiver::feed_incoming(const std::vector<Packet>& packets) {
+    void Receiver::feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) {
         bool had_data = false;
 
         for (const auto& pkt : packets) {
@@ -24,7 +23,7 @@ namespace transfer {
                 }, pkt);
         }
 
-        if (had_data && state == State::RECEIVING) {
+        if (had_data && (state == State::RECEIVING || state == State::WAIT_END)) {
             AckPacket ack;
             ack.ack_id = expected_seq;
             outgoing.push_back(ack);
@@ -40,8 +39,6 @@ namespace transfer {
         total_chunks = pkt.total_chunks;
         expected_file_hash = pkt.file_hash;
         expected_seq = 0;
-
-        std::cout << file_name << " " << file_size << " " << total_chunks << " " << expected_file_hash << "\n";
 
         buffer.resize(total_chunks);
 
@@ -78,9 +75,7 @@ namespace transfer {
         if (state != State::RECEIVING) return;
 
         if (pkt.chunk_id == expected_seq) {
-            std::string actual_hash = std::to_string(
-                std::hash<std::string>{}(std::string(pkt.payload.begin(), pkt.payload.end()))
-            );
+            std::string actual_hash = sha256_bytes(pkt.payload);
 
             if (actual_hash != pkt.chunk_hash) {
                 return;
@@ -94,12 +89,22 @@ namespace transfer {
         }
     }
 
+    void Receiver::on_end(const EndPacket& pkt) {
+        if (state != State::WAIT_END) return;
 
-    void Receiver::on_end(const EndPacket& pkt) {     
-        /* проверка хэша позже */ 
+        std::vector<uint8_t> full_file;
+        full_file.reserve(file_size);
+        for (const auto& chunk : buffer) {
+            full_file.insert(full_file.end(), chunk.begin(), chunk.end());
+        }
+
+        std::string actual_hash = sha256_bytes(full_file);
+        if (actual_hash != pkt.file_hash) {
+            state = State::ERROR;
+            return;
+        }
 
         outgoing.push_back(EndAckPacket{});
         state = State::DONE;
     }
-
 } 
