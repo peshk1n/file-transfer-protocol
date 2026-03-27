@@ -68,6 +68,7 @@ namespace transfer {
 
 
     void Sender::feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) {
+        if (state == State::ERROR || state == State::DONE) return;
         for (const auto& pkt : packets) {
             std::visit(overloaded{
                 [&](const StartAckPacket& p) { on_start_ack(p, now_ms); },
@@ -92,7 +93,7 @@ namespace transfer {
 
     void Sender::on_ack(const AckPacket& pkt, uint64_t now_ms) {
         if (state != State::TRANSFERRING) return;
-        if (pkt.ack_id <= base) return;
+        if (pkt.ack_id <= base || pkt.ack_id > total_chunks) return;
 
         base = pkt.ack_id;
 
@@ -161,6 +162,8 @@ namespace transfer {
     }
 
     void Sender::tick(uint64_t now_ms) {
+        if (state == State::ERROR || state == State::DONE) return;
+
         if (timer_start_ms == 0 && state == State::WAIT_START_ACK) {
             start_timer(now_ms);
             return;

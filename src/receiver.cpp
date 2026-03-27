@@ -12,8 +12,9 @@ namespace transfer {
     }
 
     void Receiver::feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) {
-        bool had_data = false;
+        if (state == State::ERROR || state == State::DONE) return;
 
+        bool had_data = false;
         for (const auto& pkt : packets) {
             std::visit(overloaded{
                 [&](const StartPacket& p) { on_start(p); },
@@ -34,18 +35,34 @@ namespace transfer {
     void Receiver::on_start(const StartPacket& pkt) {
         if (state != State::WAIT_START) return;
 
+        auto reject = [&]() {
+            StartAckPacket ack;
+            ack.status = Status::ERROR;
+            outgoing.push_back(ack);
+            state = State::ERROR;
+            };
+
+        if (pkt.file_name.empty()) return reject();
+        if (pkt.file_hash.empty()) return reject();
+        if (pkt.file_size == 0)    return reject();
+        if (pkt.chunk_size == 0)   return reject();
+        if (pkt.total_chunks == 0) return reject();
+
+        uint32_t expected_chunks = static_cast<uint32_t>(
+            (pkt.file_size + pkt.chunk_size - 1) / pkt.chunk_size
+            );
+        if (pkt.total_chunks != expected_chunks) return reject();
+
         file_name = pkt.file_name;
         file_size = pkt.file_size;
         total_chunks = pkt.total_chunks;
         expected_file_hash = pkt.file_hash;
         expected_seq = 0;
-
         buffer.resize(total_chunks);
 
         StartAckPacket ack;
         ack.status = Status::OK;
         outgoing.push_back(ack);
-
         state = State::RECEIVING;
     }
 
@@ -75,6 +92,8 @@ namespace transfer {
         if (state != State::RECEIVING) return;
 
         if (pkt.chunk_id == expected_seq) {
+            if (pkt.payload.empty()) return;
+
             std::string actual_hash = sha256_bytes(pkt.payload);
 
             if (actual_hash != pkt.chunk_hash) {
@@ -99,7 +118,7 @@ namespace transfer {
         }
 
         std::string actual_hash = sha256_bytes(full_file);
-        if (actual_hash != pkt.file_hash) {
+        if (actual_hash != pkt.file_hash || actual_hash != expected_file_hash) {
             state = State::ERROR;
             return;
         }
