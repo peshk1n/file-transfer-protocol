@@ -13,7 +13,7 @@ namespace transfer
     class TransferSession
     {
     public:
-        TransferSession();
+        explicit TransferSession(const std::string& save_directory = ".");
         ~TransferSession();
 
         // Инициализация сессии в режиме отправителя
@@ -40,8 +40,7 @@ namespace transfer
 
     private:
         std::unique_ptr<ITransferAgent> agent;  // Агент (отправитель или получатель)
-        uint64_t last_packet_ms{};              // Время последнего пакета
-        uint64_t timeout_ms{ 3000 };            // Таймаут ожидания (ms)
+        std::string save_directory;
     };
 
 } 

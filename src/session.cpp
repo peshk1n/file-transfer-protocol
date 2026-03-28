@@ -5,7 +5,8 @@
 
 namespace transfer {
 
-	TransferSession::TransferSession() = default;
+    TransferSession::TransferSession(const std::string& save_directory)
+        : save_directory(save_directory) {}
 	TransferSession::~TransferSession() = default;
 
     void TransferSession::init_as_sender(const std::string& file_path,
@@ -15,14 +16,14 @@ namespace transfer {
     }
 
     void TransferSession::init_as_receiver() {
-        agent = std::make_unique<Receiver>();
+        agent = std::make_unique<Receiver>(save_directory);
     }
 
     void TransferSession::feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) {
         if (!agent) {
             if (packets.empty()) return;
             if (std::holds_alternative<StartPacket>(packets.front())) {
-                agent = std::make_unique<Receiver>();
+                agent = std::make_unique<Receiver>(save_directory);
             }
             else {
                 return; // непонятный пакет без агента - игнорим

@@ -2,16 +2,21 @@
 
 #include "transfer_agent.h"
 #include "transfer/packets.h"
+#include "utils.h"
+
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <fstream>
+//#include <iostream>
 
 namespace transfer {
 
     // Агент получателя файла
     class Receiver : public ITransferAgent {
     public:
-        Receiver();
+        Receiver(const std::string& save_directory);
+        ~Receiver();
 
         // Реализация интерфейса ITransferAgent
         void feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) override;
@@ -46,8 +51,15 @@ namespace transfer {
         uint64_t file_size{};                     // Размер файла
         std::vector<std::vector<uint8_t>> buffer; // Сборка чанков файла
 
+        std::string save_directory;
+        std::string temp_path;
+        std::string final_path;
+        std::ofstream out_file;
+
         std::vector<Packet> outgoing; // Пакеты для отправки
         std::string error;            // Сообщение об ошибке
+
+        picosha2::hash256_one_by_one file_hasher;
     };
 
 } 
