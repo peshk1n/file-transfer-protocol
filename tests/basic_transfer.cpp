@@ -207,17 +207,51 @@ void test_ignore_damaged_data(const std::string& fname) {
     }
 
     assert(alice.is_done() && "Sender must be done");
-    assert(bob.get_progress() > 0.99f && "Receiver must reach 100% despite corruption");
+    assert(bob.is_done() && "Receiver must be done");
+    assert(bob.get_progress() > 0.99f && "Receiver progress should be 1");
     assert(damaged && "damage was never met");
+}
+
+void test_packet_loss(const std::string& fname) {
+    TransferSession alice, bob;
+    alice.init_as_sender(fname);
+    bob.init_as_receiver();
+
+    uint64_t time = 0;
+    bool loss = false;
+
+    while (!(alice.is_done() && bob.is_done())) {
+        auto p1 = alice.poll_outgoing();
+        if (!loss && alice.get_progress() > 0.3f && !p1.empty()) {
+            loss = true;
+        }
+        else {
+            bob.feed_incoming(p1, time);
+        }
+        auto p2 = bob.poll_outgoing();
+        alice.feed_incoming(p2, time);
+
+        alice.tick(time);
+        bob.tick(time);
+
+        time += 100;
+        assert(time < 60000 && "Transfer timed out");
+    }
+
+    assert(alice.is_done() && "Sender must be done");
+    assert(bob.is_done() && "Receiver must be done");
+    assert(loss && "packet loss not met");
+    assert(bob.get_progress() > 0.99f && "Receiver progress should be 1");
 }
 
 
 
-
-
 int main() {
+   
+    //std::string path = std::string(TEST_DATA_DIR) + "/test1.txt";
+    //create_test_file(path);
+
     std::string path = std::string(TEST_DATA_DIR) + "/test.txt";
-   // std::string path = std::string(TEST_DATA_DIR) + "/test1.txt";
 
     test_handshake(path);
     std::cout << "test_handshake PASSED\n";
@@ -238,6 +272,9 @@ int main() {
     std::cout << "test_is_error_invalid_start PASSED\n";
     
     test_ignore_damaged_data(path);
+    std::cout << "test_ignore_damaged_data PASSED\n";
+
+    test_packet_loss(path);
     std::cout << "test_ignore_damaged_data PASSED\n";
 
 
