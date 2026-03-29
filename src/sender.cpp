@@ -17,20 +17,24 @@ namespace transfer {
         if (!file.is_open())
             throw std::runtime_error("Cannot open file: " + file_path);
 
-        std::vector<uint8_t> file_data{
-            std::istreambuf_iterator<char>(file),
-            std::istreambuf_iterator<char>()
-        };
+        file.seekg(0, std::ios::end);
+        uint64_t file_size = static_cast<uint64_t>(file.tellg());
+        file.seekg(0, std::ios::beg);
+
+        if (file_size == 0)
+            throw std::runtime_error("File is empty: " + file_path);
 
         picosha2::hash256_one_by_one file_hasher;
-
         uint32_t id = 0;
-        for (size_t offset = 0; offset < file_data.size(); offset += chunk_size) {
-            size_t end = std::min(offset + chunk_size, file_data.size());
-            std::vector<uint8_t> payload(file_data.begin() + offset, file_data.begin() + end);
+
+        while (!file.eof()) {
+            std::vector<uint8_t> payload(chunk_size);
+            file.read(reinterpret_cast<char*>(payload.data()), chunk_size);
+            size_t bytes_read = static_cast<size_t>(file.gcount());
+            if (bytes_read == 0) break;
+            payload.resize(bytes_read);
 
             file_hasher.process(payload.begin(), payload.end());
-
             std::string chunk_hash = picosha2::hash256_hex_string(payload);
 
             DataPacket dp;
@@ -42,14 +46,13 @@ namespace transfer {
 
         file_hasher.finish();
         std::string file_hash = picosha2::get_hash_hex_string(file_hasher);
-
         total_chunks = static_cast<uint32_t>(chunks.size());
 
         std::string file_name = file_path.substr(file_path.find_last_of("/\\") + 1);
 
         StartPacket sp;
         sp.file_name = file_name;
-        sp.file_size = static_cast<uint64_t>(file_data.size());
+        sp.file_size = file_size;
         sp.chunk_size = chunk_size;
         sp.total_chunks = total_chunks;
         sp.file_hash = file_hash;
