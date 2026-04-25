@@ -15,11 +15,14 @@ namespace transfer
     public:
         explicit TransferSession(const std::string& save_directory = ".");
         ~TransferSession();
+        TransferSession(TransferSession&&);
+        TransferSession& operator=(TransferSession&&);
 
         // Инициализация сессии в режиме отправителя
         void init_as_sender(const std::string& file_path,
             uint32_t chunk_size = 4096,
-            uint32_t window_size = 4);
+            uint32_t window_size = 4,
+            uint64_t now_ms = 0);
 
         // Инициализация сессии в режиме получателя
         void init_as_receiver();

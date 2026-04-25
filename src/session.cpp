@@ -7,12 +7,15 @@ namespace transfer {
 
     TransferSession::TransferSession(const std::string& save_directory)
         : save_directory(save_directory) {}
-	TransferSession::~TransferSession() = default;
+    TransferSession::~TransferSession() = default;
+    TransferSession::TransferSession(TransferSession&&) = default;
+    TransferSession& TransferSession::operator=(TransferSession&&) = default;
 
     void TransferSession::init_as_sender(const std::string& file_path,
         uint32_t chunk_size,
-        uint32_t window_size) {
-        agent = std::make_unique<Sender>(file_path, chunk_size, window_size);
+        uint32_t window_size,
+        uint64_t now_ms) {
+        agent = std::make_unique<Sender>(file_path, chunk_size, window_size, now_ms);
     }
 
     void TransferSession::init_as_receiver() {

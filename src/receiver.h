@@ -25,7 +25,7 @@ namespace transfer {
 
         bool is_done() const override;       // Передача завершена
         bool is_error() const override;      // Ошибка приема
-        float get_progress() const override; // Прогресс приема
+        float get_progress() const override; // Прогресс приема 
 
     private:
         // Обработка конкретных пакетов
@@ -46,10 +46,9 @@ namespace transfer {
         uint32_t expected_seq; // Следующий ожидаемый пакет
         uint32_t total_chunks; // Общее количество пакетов
 
-        std::string expected_file_hash;          // Ожидаемый хэш файла
-        std::string file_name;                   // Имя файла
-        uint64_t file_size{};                     // Размер файла
-        std::vector<std::vector<uint8_t>> buffer; // Сборка чанков файла
+        std::string expected_file_hash;  // Ожидаемый хэш файла
+        std::string file_name;           // Имя файла
+        uint64_t file_size{};            // Размер файла
 
         std::string save_directory;
         std::string temp_path;

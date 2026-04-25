@@ -11,7 +11,7 @@ namespace transfer {
     // Агент отправителя файла
     class Sender : public ITransferAgent {
     public:
-        Sender(const std::string& file_path, uint32_t chunk_size, uint32_t window_size);
+        Sender(const std::string& file_path, uint32_t chunk_size, uint32_t window_size, uint64_t now_ms);
 
         // Реализация интерфейса ITransferAgent
         void feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) override;
@@ -54,7 +54,7 @@ namespace transfer {
         std::vector<Packet> chunks;   // Все DATA-пакеты, нарезанные из файла
         std::vector<Packet> outgoing; // Пакеты, готовые к отправке
 
-        std::uint64_t timer_start_ms{ 0 };   // 0 = таймер не запущен
+        std::uint64_t timer_start_ms{ UINT64_MAX };   // UINT64_MAX = таймер не запущен
         std::uint64_t timeout_ms{ 3000 };
 
         StartPacket start_packet;

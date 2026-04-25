@@ -1,4 +1,3 @@
-//#include <iostream>
 #include "receiver.h"
 #include "utils.h"
 
@@ -22,7 +21,7 @@ namespace transfer {
 
 
     void Receiver::feed_incoming(const std::vector<Packet>& packets, uint64_t now_ms) {
-        if (state == State::ERROR || state == State::DONE) return;
+        if (state == State::ERROR) return;
 
         bool had_data = false;
         for (const auto& pkt : packets) {
@@ -43,7 +42,14 @@ namespace transfer {
 
 
     void Receiver::on_start(const StartPacket& pkt) {
-        if (state != State::WAIT_START) return;
+        if (state != State::WAIT_START) {
+            if (state == State::RECEIVING) {
+                StartAckPacket ack;
+                ack.status = Status::OK;
+                outgoing.push_back(ack);
+            }
+            return;
+        }
 
         auto reject = [&]() {
             StartAckPacket ack;
@@ -105,6 +111,9 @@ namespace transfer {
 
 
     void Receiver::on_end(const EndPacket& pkt) {
+        if (state == State::DONE) {
+            outgoing.push_back(EndAckPacket{});
+        }
         if (state != State::WAIT_END) return;
         if (pkt.file_hash.empty()) { state = State::ERROR; return; }
         if (pkt.file_hash != expected_file_hash) { state = State::ERROR; return; }
